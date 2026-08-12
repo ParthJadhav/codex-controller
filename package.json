@@ -1,0 +1,117 @@
+{
+  "name": "codex-controller",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Turn a DualSense into a physical control surface for Codex.",
+  "type": "module",
+  "main": "./out/main/index.js",
+  "author": "Parth Jadhav",
+  "license": "MIT",
+  "homepage": "https://github.com/ParthJadhav/codex-controller#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ParthJadhav/codex-controller.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ParthJadhav/codex-controller/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "native:build": "swift build --package-path native",
+    "native:build:release": "./scripts/build-native-universal.sh",
+    "build:all": "npm run native:build && npm run build",
+    "build": "tsc --noEmit && electron-vite build",
+    "start": "electron-vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "npm run native:build:release && npm run build && electron-builder --mac dir --universal --publish never && npm run install:mac",
+    "install:mac": "node scripts/install-macos-app.mjs",
+    "dist": "npm run native:build:release && npm run build && electron-builder --mac dmg zip --universal --publish never",
+    "release:verify": "./scripts/verify-release-artifacts.sh --notarized",
+    "release:notarize": "./scripts/notarize-release-artifacts.sh"
+  },
+  "knip": {
+    "entry": [
+      "electron.vite.config.ts",
+      "vitest.config.ts",
+      "src/main/index.ts",
+      "src/preload/index.ts",
+      "src/renderer/src/main.tsx",
+      "src/**/*.test.{ts,tsx}"
+    ]
+  },
+  "dependencies": {
+    "@radix-ui/react-dropdown-menu": "^2.1.22",
+    "@radix-ui/react-slot": "^1.3.1",
+    "@radix-ui/react-switch": "^1.3.5",
+    "@radix-ui/react-tooltip": "^1.2.14",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "1.26.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "sonner": "2.0.7",
+    "tailwind-merge": "^3.6.0",
+    "three": "0.185.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.2",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/three": "0.185.1",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "43.2.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "jsdom": "29.1.1",
+    "typescript": "^5.9.3",
+    "vite": "7.3.6",
+    "vitest": "4.1.10"
+  },
+  "build": {
+    "appId": "com.parthjadhav.CodexController",
+    "productName": "Codex Controller",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "copyright": "Copyright © 2026 Parth Jadhav",
+    "asar": true,
+    "electronLanguages": [
+      "en"
+    ],
+    "files": [
+      "out/**/*",
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md"
+    ],
+    "extraResources": [
+      {
+        "from": "native/.build/universal-release/ControllerBridge",
+        "to": "native/ControllerBridge"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Codex Controller briefly samples the selected DualSense input only when you run an explicit audio verification.",
+        "NSBluetoothAlwaysUsageDescription": "Codex Controller connects to your DualSense over Bluetooth.",
+        "NSHumanReadableCopyright": "Copyright © 2026 Parth Jadhav. Released under the MIT License."
+      }
+    },
+    "dmg": {
+      "sign": true
+    }
+  }
+}

@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist/
+.vite/
+.build/
+native/.build/
+DerivedData/
+*.tsbuildinfo
+
+# Packaged app artifacts. `npm run package` writes into dist/, but a stray
+# bundle at the repository root has escaped from a build before now — anchored
+# so it cannot match a legitimate src/**/index.js.
+/index.js
+*.asar
+
+# Secrets. Nothing here today; listed so an accidental one is never committed.
+.env
+.env.*
+*.pem
+*.key
+*.p8
+*.p12
+*.mobileprovision
+
+# Test and tooling output
+coverage/
+*.log
+.impeccable/
+.claude/worktrees/
+
+# Xcode
+*.xcuserstate
+*.profraw
+**/xcuserdata/

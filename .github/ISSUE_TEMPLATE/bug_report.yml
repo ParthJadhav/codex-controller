@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a reproducible problem in Codex Controller.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve Codex Controller. Do not include credentials, private Codex content, or raw controller identifiers.
+  - type: input
+    id: version
+    attributes:
+      label: Codex Controller version
+      placeholder: 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac architecture
+      placeholder: macOS 15.6, Apple silicon
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Controller connection
+      options: [USB, Bluetooth, No controller, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data safety
+      options:
+        - label: I removed credentials, private task content, and unique device identifiers.
+          required: true

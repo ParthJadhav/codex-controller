@@ -1,0 +1,2732 @@
+/* =============================================================================
+   Codex Controller
+
+   Colour roles, applied consistently:
+     accent   selection and interactive intent — nothing else
+     success  transient confirmation only, never a resting state
+     warning  something needs the user to act
+     failure  a failure, or a destructive control
+   A healthy steady state is neutral text. Colour is reserved for things that
+   are true right now and that the user can do something about.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  font-synthesis: none;
+
+  /* Surfaces, darkest to lightest. */
+  --canvas: oklch(0.145 0.009 265);
+  --chrome: oklch(0.168 0.009 265);
+  --surface: oklch(0.192 0.009 265);
+  --raised: oklch(0.225 0.01 265);
+  --inset: oklch(0.163 0.008 265);
+
+  --border: oklch(0.78 0.02 265 / 0.13);
+  --border-strong: oklch(0.82 0.02 265 / 0.24);
+
+  /* Text, loudest to quietest. */
+  --text: oklch(0.965 0.005 265);
+  --muted: oklch(0.755 0.014 265);
+  --quiet: oklch(0.615 0.014 265);
+
+  --accent: oklch(0.62 0.19 264);
+  --accent-hover: oklch(0.67 0.19 264);
+  --accent-text: oklch(0.82 0.13 264);
+  --accent-soft: oklch(0.62 0.19 264 / 0.16);
+  --on-strong: oklch(0.12 0.02 265);
+
+  --success: oklch(0.72 0.16 151);
+  --warning: oklch(0.78 0.15 72);
+  --warning-soft: oklch(0.78 0.15 72 / 0.15);
+  --failure: oklch(0.66 0.21 25);
+  --failure-soft: oklch(0.66 0.21 25 / 0.15);
+
+  --radius-sm: 6px;
+  --radius: 9px;
+  --radius-lg: 13px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --bar-height: 52px;
+  --rail-width: 212px;
+  --editor-width: 372px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--canvas);
+  color: var(--text);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  font-size: 13px;
+  line-height: 1.45;
+  user-select: none;
+}
+
+button,
+input,
+select,
+textarea {
+  color: inherit;
+  font: inherit;
+}
+
+button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--quiet);
+  opacity: 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+/* Type scale. Nothing load-bearing is smaller than 11px, and 11px is reserved
+   for labels and metadata rather than prose. */
+h1 {
+  font-size: 19px;
+  font-weight: 660;
+  letter-spacing: -0.016em;
+}
+
+h2 {
+  font-size: 14px;
+  font-weight: 640;
+  letter-spacing: -0.006em;
+}
+
+h3 {
+  font-size: 12px;
+  font-weight: 630;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 8px;
+  left: 12px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 12px;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform 140ms var(--ease-out);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* -----------------------------------------------------------------------------
+   Shell
+
+   One full-width title bar rather than a title bar plus a sidebar drag strip:
+   the previous split left an empty L-shaped band across the top-left corner.
+   -------------------------------------------------------------------------- */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  grid-template-rows: var(--bar-height) minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  background: var(--canvas);
+}
+
+.command-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  /* Clears the macOS traffic lights at their inset position. */
+  padding: 0 14px 0 88px;
+  border-bottom: 1px solid var(--border);
+  background: var(--chrome);
+  -webkit-app-region: drag;
+}
+
+.command-bar-lead,
+.command-bar-trail {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.command-bar-lead {
+  flex: 0 1 auto;
+}
+
+.profile-picker {
+  display: flex;
+  min-width: 0;
+  max-width: 260px;
+  align-items: baseline;
+  gap: 7px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  color: var(--text);
+  transition: background-color 140ms var(--ease-out);
+}
+
+.profile-picker:hover,
+.profile-picker[data-state="open"] {
+  background: var(--raised);
+}
+
+.profile-picker-label {
+  flex: 0 0 auto;
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.profile-picker-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-picker > svg {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--quiet);
+}
+
+.controller-health {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  padding: 0 9px;
+  color: var(--muted);
+  font-size: 12px;
+  transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out);
+}
+
+.controller-health:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.controller-health[data-connected="false"] {
+  color: var(--warning);
+}
+
+.controller-health-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.controller-health-separator {
+  width: 1px;
+  height: 11px;
+  flex: 0 0 auto;
+  background: var(--border-strong);
+}
+
+.controller-health-detail {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.controller-health[data-low-battery="true"] .controller-health-detail,
+.controller-health[data-low-battery="true"] > svg:last-child {
+  color: var(--warning);
+}
+
+/* The label states what dispatch IS doing. The verb that changes it lives in
+   the tooltip, so the button never asks you to infer state from its action. */
+.dispatch-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0 12px 0 10px;
+  font-size: 12px;
+  font-weight: 580;
+  transition: background-color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+}
+
+.dispatch-toggle[data-dispatching="true"] {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.dispatch-toggle[data-dispatching="true"] > svg {
+  color: var(--success);
+}
+
+.dispatch-toggle[data-dispatching="true"]:hover {
+  border-color: var(--border-strong);
+  background: var(--raised);
+  color: var(--text);
+}
+
+.dispatch-toggle[data-dispatching="false"] {
+  border-color: oklch(0.78 0.15 72 / 0.4);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.dispatch-toggle[data-dispatching="false"]:hover {
+  background: oklch(0.78 0.15 72 / 0.22);
+}
+
+/* -----------------------------------------------------------------------------
+   Sidebar
+   -------------------------------------------------------------------------- */
+
+.sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--chrome);
+}
+
+.sidebar-nav {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 10px 10px 0;
+}
+
+.nav-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 520;
+  text-align: left;
+  transition: background-color 130ms var(--ease-out), color 130ms var(--ease-out);
+}
+
+.nav-item:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.nav-item[data-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 580;
+}
+
+.nav-item[data-selected="true"] > svg {
+  color: var(--accent-text);
+}
+
+.nav-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The shortcut is rendered rather than only exposed to assistive tech, so the
+   rail teaches its own keyboard model. */
+.nav-item-hint {
+  color: var(--quiet);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity 130ms var(--ease-out);
+}
+
+.nav-item:hover .nav-item-hint,
+.nav-item[data-selected="true"] .nav-item-hint {
+  opacity: 1;
+}
+
+.nav-item-badge {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 5px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-item-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+
+.sidebar-footer {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 10px;
+}
+
+.light-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 30px;
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.light-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  transition: background-color 220ms var(--ease-out);
+}
+
+.light-legend-tip {
+  max-width: 232px;
+}
+
+.light-legend-tip strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.light-legend-tip p {
+  color: var(--muted);
+}
+
+.light-legend-tip ol {
+  margin: 5px 0 0;
+  padding-left: 16px;
+  color: var(--muted);
+}
+
+/* -----------------------------------------------------------------------------
+   View host
+   -------------------------------------------------------------------------- */
+
+.view-host {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.view-host:focus {
+  outline: none;
+}
+
+/* -----------------------------------------------------------------------------
+   Controller workspace
+
+   The stage keeps the room the deleted status rail was using. Composer sits
+   directly under it because dictating and sending is the daily loop.
+   -------------------------------------------------------------------------- */
+
+.controller-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--editor-width);
+  grid-template-rows: minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.controller-workspace > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+.controller-stage {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 45%, oklch(0.225 0.012 265 / 0.55), transparent 70%),
+    var(--canvas);
+}
+
+.controller-scene-shell,
+.controller-scene-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.controller-scene-shell {
+  position: relative;
+}
+
+.controller-scene-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.controller-semantic-controls button {
+  display: block;
+}
+
+.scene-tools {
+  position: absolute;
+  z-index: 4;
+  top: 14px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.scene-hint {
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.scene-loading,
+.scene-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.scene-loading-silhouette {
+  display: block;
+  width: 150px;
+  height: 74px;
+  border: 1px solid var(--border);
+  border-radius: 50% 50% 38% 38%;
+  background: var(--surface);
+  animation: soft-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes soft-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.layer-switcher {
+  position: absolute;
+  z-index: 4;
+  top: 14px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: oklch(0.168 0.009 265 / 0.86);
+  padding: 3px;
+  backdrop-filter: blur(14px);
+}
+
+.layer-switcher-icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: var(--quiet);
+}
+
+.layer-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 560;
+  transition: background-color 130ms var(--ease-out), color 130ms var(--ease-out);
+}
+
+.layer-chip:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.layer-chip[data-selected="true"] {
+  background: var(--accent);
+  color: var(--on-strong);
+}
+
+.layer-chip-count {
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.62;
+}
+
+/* Confirms which part the pointer or the selection is on. Without it the stage
+   gave no feedback that the part you clicked is the part the editor opened. */
+.stage-caption {
+  position: absolute;
+  z-index: 4;
+  bottom: 16px;
+  left: 50%;
+  display: flex;
+  max-width: min(560px, calc(100% - 40px));
+  align-items: baseline;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: oklch(0.168 0.009 265 / 0.88);
+  padding: 7px 16px;
+  backdrop-filter: blur(14px);
+  transform: translateX(-50%);
+}
+
+.stage-caption[data-empty="true"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--quiet);
+  font-size: 12px;
+  backdrop-filter: none;
+}
+
+.stage-caption[data-preview="true"] {
+  border-color: var(--border-strong);
+}
+
+.stage-caption strong {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 640;
+}
+
+.stage-caption-action {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 7px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-caption-gesture {
+  flex: 0 0 auto;
+  border-radius: 4px;
+  background: var(--raised);
+  padding: 1px 6px;
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.stage-caption-unmapped {
+  color: var(--quiet);
+}
+
+/* A disabled mapping is named but reads as inert, matching its unlit part. */
+.stage-caption-action[data-disabled="true"] {
+  color: var(--quiet);
+}
+
+.stage-caption-off {
+  flex: 0 0 auto;
+  color: var(--quiet);
+}
+
+/* -----------------------------------------------------------------------------
+   Composer
+
+   A field the user types into should look like a field. The waveform and timer
+   exist only while listening rather than sitting empty in the widest column.
+   -------------------------------------------------------------------------- */
+
+.composer {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  gap: 7px;
+  border-top: 1px solid var(--border);
+  background: var(--chrome);
+  padding: 14px 20px 15px;
+}
+
+.composer-field {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--inset);
+  padding: 7px 7px 7px 8px;
+  transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out);
+}
+
+.composer-field:focus-within {
+  border-color: oklch(0.62 0.19 264 / 0.66);
+  background: oklch(0.175 0.01 265);
+}
+
+.composer[data-listening="true"] .composer-field {
+  border-color: oklch(0.66 0.21 25 / 0.5);
+}
+
+.mic-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--raised);
+  color: var(--muted);
+  transition: background-color 140ms var(--ease-out), color 140ms var(--ease-out),
+    transform 120ms var(--ease-out);
+}
+
+.mic-button:hover:not(:disabled) {
+  background: oklch(0.27 0.012 265);
+  color: var(--text);
+}
+
+.mic-button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.mic-button:disabled {
+  opacity: 0.5;
+}
+
+.mic-button[data-listening="true"] {
+  background: var(--failure);
+  color: var(--on-strong);
+  animation: mic-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  50% {
+    box-shadow: 0 0 0 5px oklch(0.66 0.21 25 / 0.18);
+  }
+}
+
+.composer-input.ui-textarea {
+  min-height: 34px;
+  max-height: 132px;
+  flex: 1 1 auto;
+  align-self: center;
+  border: 0;
+  background: transparent;
+  padding: 7px 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: none;
+}
+
+.composer-input.ui-textarea:focus {
+  background: transparent;
+  outline: none;
+}
+
+.composer-meter {
+  display: flex;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.composer-meter time {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.waveform {
+  display: flex;
+  height: 18px;
+  align-items: center;
+  gap: 2px;
+}
+
+.waveform span {
+  width: 2px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--failure);
+  transition: height 120ms ease-out;
+}
+
+.send-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-strong);
+  transition: background-color 140ms var(--ease-out);
+}
+
+.send-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.send-button:disabled {
+  background: var(--raised);
+  color: var(--quiet);
+  cursor: not-allowed;
+}
+
+.composer-helper {
+  min-height: 16px;
+  padding-left: 4px;
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.composer-helper[data-tone="warning"] {
+  color: var(--warning);
+}
+
+.composer-helper[data-tone="active"] {
+  color: var(--muted);
+}
+
+/* -----------------------------------------------------------------------------
+   Binding editor
+
+   Reads as a sentence: "When you <gesture> <control> in <layer>, Codex Controller
+   will <action>." Delivery and safety are folded away because they are correct
+   by default and rarely changed.
+   -------------------------------------------------------------------------- */
+
+.binding-editor {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--chrome);
+}
+
+.binding-editor-header {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+}
+
+.binding-editor-header h2 {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.binding-conflict {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  padding: 3px 9px;
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 560;
+}
+
+.binding-editor-scroll {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Capped so the panel reads identically at 372px in the workspace and at the
+   wider column in the mappings view. Widening a form only adds empty space
+   between a label and its control. */
+.binding-editor-body {
+  display: grid;
+  gap: 22px;
+  max-width: 460px;
+  padding: 18px 20px 24px;
+}
+
+.binding-clause {
+  display: grid;
+  gap: 12px;
+}
+
+.binding-clause h3 {
+  color: var(--quiet);
+  font-size: 11px;
+  font-weight: 620;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.binding-editor-empty {
+  display: grid;
+  grid-row: 1 / -1;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 32px;
+  color: var(--quiet);
+  text-align: center;
+}
+
+.binding-editor-empty p {
+  max-width: 30ch;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 560;
+}
+
+.field-description {
+  color: var(--quiet);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.field-note {
+  border-left: 2px solid var(--border-strong);
+  padding-left: 10px;
+  color: var(--quiet);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.field-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.shortcut-recorder-field {
+  display: grid;
+  gap: 8px;
+}
+
+/* The unsupported-key live region stays mounted so it announces; empty is invisible. */
+.shortcut-recorder-feedback:empty {
+  display: none;
+}
+
+.shortcut-recorder {
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--inset);
+  padding: 0 12px;
+  color: var(--muted);
+  text-align: left;
+  transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out);
+}
+
+.shortcut-recorder:hover {
+  border-color: oklch(0.82 0.02 265 / 0.36);
+}
+
+.shortcut-recorder[data-recording="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.shortcut-recorder-value {
+  overflow: hidden;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut-recorder[data-empty="true"] .shortcut-recorder-value {
+  color: var(--quiet);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.shortcut-recorder-hint {
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.binding-advanced {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.binding-advanced > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 560;
+  cursor: pointer;
+  list-style: none;
+}
+
+.binding-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.binding-advanced > summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transition: transform 140ms var(--ease-out);
+}
+
+.binding-advanced[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.binding-advanced > summary:hover {
+  color: var(--text);
+}
+
+.binding-advanced-body {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.switch-row > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.switch-row strong {
+  font-size: 12px;
+  font-weight: 580;
+}
+
+.switch-row small {
+  color: var(--quiet);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.sequence-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.sequence-step {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--inset);
+  padding: 12px;
+}
+
+.sequence-step-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.sequence-step-heading strong {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-weight: 580;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sequence-step-index {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.binding-editor-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 60px;
+  border-top: 1px solid var(--border);
+  background: var(--canvas);
+  padding: 12px 20px;
+}
+
+.binding-editor-footer .autosave-status {
+  margin-left: auto;
+}
+
+.autosave-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.autosave-status > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autosave-status[data-tone="warning"] {
+  color: var(--warning);
+}
+
+.autosave-status[data-state="saving"] svg {
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Mappings
+   -------------------------------------------------------------------------- */
+
+/* The list is the browsing surface and grows; the editor is a capped form, so
+   giving it the flexible column would only add empty space beside the fields. */
+.mappings-view {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) 500px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.mapping-browser {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--chrome);
+}
+
+.mapping-browser-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 14px 10px;
+}
+
+.mapping-search {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--inset);
+  padding-left: 10px;
+  color: var(--quiet);
+  transition: border-color 140ms var(--ease-out);
+}
+
+.mapping-search:focus-within {
+  border-color: oklch(0.62 0.19 264 / 0.6);
+}
+
+.mapping-search .ui-input {
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  padding-left: 0;
+}
+
+.mapping-search .ui-input:focus {
+  background: transparent;
+}
+
+.mapping-conflict-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 14px 10px;
+  border: 1px solid oklch(0.78 0.15 72 / 0.3);
+  border-radius: var(--radius);
+  background: var(--warning-soft);
+  padding: 9px 11px;
+  color: var(--warning);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mapping-conflict-banner > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.mapping-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+}
+
+.mapping-group + .mapping-group {
+  margin-top: 12px;
+}
+
+.mapping-group h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 5px;
+  color: var(--quiet);
+  font-size: 11px;
+  font-weight: 620;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mapping-group h2 > span {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  opacity: 0.75;
+}
+
+.mapping-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  text-align: left;
+  transition: background-color 130ms var(--ease-out);
+}
+
+.mapping-row:hover {
+  background: var(--surface);
+}
+
+.mapping-row[data-selected="true"] {
+  background: var(--accent-soft);
+}
+
+.mapping-control {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 580;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-row[data-selected="true"] .mapping-control {
+  color: var(--accent-text);
+}
+
+.mapping-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mapping-copy strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-row[data-disabled="true"] .mapping-copy strong {
+  color: var(--quiet);
+  text-decoration: line-through;
+}
+
+.mapping-copy small {
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.mapping-flag {
+  justify-self: center;
+  color: var(--warning);
+}
+
+.mapping-flag-off {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--quiet);
+  border-radius: 50%;
+}
+
+.mapping-empty {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 48px 24px;
+  color: var(--quiet);
+  text-align: center;
+}
+
+.mapping-empty p {
+  font-size: 12px;
+}
+
+.mapping-browser-foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding: 8px 10px;
+}
+
+.mapping-browser-foot .spacer {
+  flex: 1;
+}
+
+.mappings-view .binding-editor {
+  grid-column: auto;
+  grid-row: auto;
+  border-left: 0;
+  background: var(--canvas);
+}
+
+.mappings-view .binding-editor-footer {
+  background: var(--chrome);
+}
+
+/* -----------------------------------------------------------------------------
+   Scrolling pages: Diagnostics and Settings
+   -------------------------------------------------------------------------- */
+
+.page {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--border);
+  padding: 18px 26px;
+}
+
+.page-head p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.page-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 26px 44px;
+}
+
+.panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+/* Title and subtitle stack; anything else in the head sits to the right of
+   both, spanning the two rows. */
+.panel-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 13px 16px;
+}
+
+.panel-head > h2,
+.panel-head > p {
+  grid-column: 1;
+}
+
+.panel-head > p {
+  margin-top: 2px;
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.panel-head > :not(h2):not(p) {
+  grid-column: 2;
+  grid-row: 1 / -1;
+}
+
+.live-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.live-dot::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: soft-pulse 2s ease-in-out infinite;
+}
+
+/* -----------------------------------------------------------------------------
+   Diagnostics
+
+   Healthy is quiet. Only a missing grant gets colour and a button, and the
+   list sorts problems to the top so the first row answers "what is wrong".
+   -------------------------------------------------------------------------- */
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.stat-figure {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  column-gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 14px 16px;
+}
+
+.stat-figure-icon {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  color: var(--quiet);
+}
+
+.stat-figure[data-tone="warning"] .stat-figure-icon,
+.stat-figure[data-tone="warning"] .stat-figure-value {
+  color: var(--warning);
+}
+
+.stat-figure-label {
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.stat-figure-value {
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.stat-figure-detail {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.diagnostic-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 14px;
+}
+
+.access-list {
+  display: grid;
+}
+
+.access-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.access-row + .access-row {
+  border-top: 1px solid var(--border);
+}
+
+.access-row-icon {
+  display: grid;
+  place-items: center;
+  color: var(--quiet);
+}
+
+.access-row[data-allowed="false"] .access-row-icon {
+  color: var(--warning);
+}
+
+.access-row-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.access-row-copy strong {
+  font-size: 12px;
+  font-weight: 580;
+}
+
+.access-row-copy small {
+  color: var(--quiet);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.access-row-status {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.access-row[data-allowed="false"] .access-row-status {
+  color: var(--warning);
+  font-weight: 580;
+}
+
+.event-scroll {
+  min-height: 220px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.event-empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 200px;
+  padding: 24px;
+  color: var(--quiet);
+  font-size: 12px;
+}
+
+.event-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.event-table th {
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 8px 16px;
+  color: var(--quiet);
+  font-size: 10.5px;
+  font-weight: 620;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.event-table td {
+  border-bottom: 1px solid oklch(0.78 0.02 265 / 0.06);
+  padding: 7px 16px;
+  color: var(--muted);
+}
+
+.event-table strong {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 560;
+}
+
+.event-table td[data-pressed="true"] {
+  color: var(--accent-text);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* -----------------------------------------------------------------------------
+   Stick rotation
+
+   Separates "the stick publishes samples" from "those samples became a step".
+   The card border is the fastest read: quiet while centred, accented once the
+   stick is far enough out to be tracked, green once a step has actually fired.
+   -------------------------------------------------------------------------- */
+
+.rotation-panel {
+  margin-top: 14px;
+}
+
+.rotation-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.rotation-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px;
+}
+
+.rotation-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  transition: border-color 140ms ease;
+}
+
+.rotation-card[data-tracking="true"] {
+  border-color: oklch(0.72 0.13 265 / 0.55);
+}
+
+.rotation-card[data-detected="true"] {
+  border-color: var(--success);
+}
+
+.rotation-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rotation-card-head strong {
+  font-size: 13px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.rotation-card-steps {
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.rotation-card-verdict {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.rotation-readouts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.rotation-readouts dt {
+  color: var(--quiet);
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rotation-readouts dd {
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.rotation-trace {
+  min-height: 120px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* -----------------------------------------------------------------------------
+   Settings
+
+   One navigation rail, not two. The app sidebar is the navigation; sections
+   stack with sticky headings and a readable measure.
+   -------------------------------------------------------------------------- */
+
+/* The scroll container stays full width so its scrollbar sits at the window
+   edge; the measure is capped on the sections themselves. Its top padding is
+   zero so the sticky section heads can pin flush against the scrollport —
+   otherwise rows scroll through the gap above them. */
+.settings-body {
+  display: grid;
+  gap: 30px;
+  justify-items: start;
+  padding-top: 0;
+}
+
+.settings-section {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  max-width: 860px;
+  min-width: 0;
+  scroll-margin-top: 16px;
+}
+
+.settings-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  background: var(--canvas);
+  padding: 18px 0 10px;
+  box-shadow: 0 8px 10px -6px var(--canvas);
+}
+
+.settings-section-head > span {
+  display: grid;
+  height: 20px;
+  place-items: center;
+  color: var(--quiet);
+}
+
+.settings-section-head p {
+  margin-top: 2px;
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.settings-group {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.settings-subhead {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  background: var(--inset);
+  padding: 12px 16px;
+}
+
+.settings-subhead:not(:first-child) {
+  border-top: 1px solid var(--border);
+}
+
+.settings-subhead > span {
+  display: grid;
+  height: 17px;
+  place-items: center;
+  color: var(--quiet);
+}
+
+.settings-subhead p {
+  margin-top: 2px;
+  color: var(--quiet);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+/* The control column is capped rather than stretched, so a switch never sits
+   at the end of a 340px gap. */
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+  align-items: center;
+  gap: 24px;
+  min-height: 58px;
+  padding: 12px 16px;
+}
+
+.settings-row + .settings-row,
+.settings-row:not(:first-child) {
+  border-top: 1px solid var(--border);
+}
+
+.settings-row[data-wide="true"] {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.settings-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.settings-copy strong {
+  font-size: 12.5px;
+  font-weight: 580;
+}
+
+.settings-copy small {
+  max-width: 62ch;
+  color: var(--quiet);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+label.settings-copy {
+  cursor: pointer;
+}
+
+.settings-control {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-control-start {
+  justify-content: flex-start;
+}
+
+.settings-control > .ui-native-select-shell,
+.settings-control > .ui-input:not([type="range"]) {
+  width: 100%;
+}
+
+.settings-slider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-slider output {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.field-note-warning {
+  color: var(--warning);
+}
+
+.settings-shortcut {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  padding: 0 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.settings-note {
+  border-top: 1px solid var(--border);
+  padding: 11px 16px;
+  color: var(--quiet);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* -----------------------------------------------------------------------------
+   Sidebar setup alert
+
+   Present only while Codex is missing a shortcut, so it can afford to be loud.
+   Accent when it can fix itself in one click; warning when it needs a decision.
+   -------------------------------------------------------------------------- */
+
+.sidebar-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  border: 1px solid oklch(0.72 0.13 265 / 0.42);
+  border-radius: var(--radius-lg);
+  background: oklch(0.72 0.13 265 / 0.12);
+  padding: 8px 10px;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 560;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.sidebar-alert:hover:not(:disabled) {
+  background: oklch(0.72 0.13 265 / 0.2);
+}
+
+.sidebar-alert:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.sidebar-alert[data-tone="warning"] {
+  border-color: oklch(0.78 0.14 70 / 0.45);
+  background: oklch(0.78 0.14 70 / 0.12);
+  color: var(--warning);
+}
+
+.sidebar-alert[data-tone="warning"]:hover:not(:disabled) {
+  background: oklch(0.78 0.14 70 / 0.2);
+}
+
+.sidebar-alert-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -----------------------------------------------------------------------------
+   Modal dialog
+
+   Native <dialog>, so focus trapping, Escape, and inertness come from the
+   platform rather than from hand-written focus management.
+   -------------------------------------------------------------------------- */
+
+.app-dialog {
+  max-width: 420px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 0;
+  color: var(--text);
+}
+
+.app-dialog::backdrop {
+  background: oklch(0.12 0.02 265 / 0.6);
+}
+
+.app-dialog-body {
+  padding: 22px 24px 18px;
+}
+
+.app-dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 13px;
+  border-radius: 50%;
+  background: oklch(0.72 0.13 265 / 0.16);
+  color: var(--accent-text);
+}
+
+.app-dialog-body > h2 {
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.app-dialog-body > p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.app-dialog-facts {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 11px 13px;
+}
+
+.app-dialog-facts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-dialog-facts dt {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.app-dialog-facts kbd {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-dialog-note {
+  margin-top: 12px;
+  color: var(--quiet);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+/* Micro parity rows. The badge is the point of the row, so it keeps its column
+   at every width and the description wraps around it. */
+.micro-parity-list {
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+
+.micro-parity-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 12px;
+  padding: 11px 16px;
+}
+
+.micro-parity-row + .micro-parity-row {
+  border-top: 1px solid oklch(0.78 0.02 265 / 0.06);
+}
+
+.micro-parity-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.micro-parity-copy strong {
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.micro-parity-copy small {
+  margin-top: 3px;
+  color: var(--quiet);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.settings-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings-facts > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+}
+
+.settings-facts > div:nth-child(odd) {
+  border-right: 1px solid var(--border);
+}
+
+.settings-facts dt {
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.settings-facts dd {
+  overflow: hidden;
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 560;
+  line-height: 1.4;
+}
+
+.settings-delete-button {
+  color: oklch(0.72 0.16 25);
+}
+
+.settings-delete-button:hover:not(:disabled) {
+  background: var(--failure-soft);
+  color: oklch(0.82 0.13 25);
+}
+
+/* Range inputs need explicit track and thumb rules to escape the base field. */
+.ui-input[type="range"] {
+  width: 100%;
+  height: 20px;
+  min-height: 20px;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.ui-input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: oklch(0.33 0.014 265);
+}
+
+.ui-input[type="range"]::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  appearance: none;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--text);
+}
+
+.ui-input[type="range"]:disabled {
+  opacity: 0.45;
+}
+
+/* -----------------------------------------------------------------------------
+   Primitives
+   -------------------------------------------------------------------------- */
+
+.ui-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 570;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 140ms var(--ease-out), border-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.ui-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ui-button--sm {
+  height: 27px;
+  gap: 5px;
+  padding-inline: 9px;
+  font-size: 11px;
+}
+
+.ui-button--lg {
+  height: 38px;
+  padding-inline: 16px;
+}
+
+.ui-button--icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.ui-button--sm.ui-button--icon {
+  width: 27px;
+  height: 27px;
+}
+
+.ui-button--default {
+  background: var(--accent);
+  color: var(--on-strong);
+}
+
+.ui-button--default:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.ui-button--secondary {
+  border-color: var(--border);
+  background: var(--raised);
+}
+
+.ui-button--secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: oklch(0.26 0.012 265);
+}
+
+.ui-button--outline {
+  border-color: var(--border-strong);
+  background: transparent;
+}
+
+.ui-button--outline:hover:not(:disabled) {
+  background: var(--raised);
+}
+
+.ui-button--ghost {
+  background: transparent;
+  color: var(--muted);
+}
+
+.ui-button--ghost:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.ui-button--destructive {
+  background: var(--failure);
+  color: var(--on-strong);
+}
+
+.ui-button--destructive:hover:not(:disabled) {
+  background: oklch(0.7 0.21 25);
+}
+
+.ui-button--default:disabled,
+.ui-button--destructive:disabled {
+  /* Preserve text contrast; reduced chroma, cursor, and disabled semantics carry the state. */
+  opacity: 1;
+  filter: saturate(0.42);
+}
+
+.full-width {
+  width: 100%;
+}
+
+.ui-badge {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 21px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 570;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.ui-badge--default {
+  background: var(--accent);
+  color: var(--on-strong);
+}
+
+.ui-badge--secondary {
+  border-color: var(--border);
+  background: var(--inset);
+  color: var(--muted);
+}
+
+.ui-badge--success {
+  background: oklch(0.72 0.16 151 / 0.15);
+  color: var(--success);
+}
+
+.ui-badge--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.ui-badge--destructive {
+  background: var(--failure-soft);
+  color: var(--failure);
+}
+
+.ui-badge--outline {
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.ui-input,
+.ui-textarea,
+.ui-native-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--inset);
+  padding: 7px 10px;
+  color: var(--text);
+  font-size: 12.5px;
+  transition: border-color 140ms var(--ease-out), background-color 140ms var(--ease-out);
+}
+
+.ui-input:hover:not(:disabled),
+.ui-textarea:hover:not(:disabled),
+.ui-native-select:hover:not(:disabled) {
+  border-color: oklch(0.82 0.02 265 / 0.36);
+}
+
+.ui-input:focus,
+.ui-textarea:focus,
+.ui-native-select:focus {
+  border-color: oklch(0.62 0.19 264 / 0.7);
+  background: oklch(0.175 0.01 265);
+}
+
+.ui-input:disabled,
+.ui-textarea:disabled,
+.ui-native-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ui-textarea {
+  resize: vertical;
+  user-select: text;
+  line-height: 1.45;
+}
+
+.ui-input {
+  user-select: text;
+}
+
+.ui-native-select-shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+}
+
+.ui-native-select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 30px;
+}
+
+.ui-native-select-shell > svg {
+  position: absolute;
+  right: 10px;
+  color: var(--quiet);
+  pointer-events: none;
+}
+
+.ui-switch {
+  position: relative;
+  display: inline-flex;
+  width: 34px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: oklch(0.26 0.012 265);
+  padding: 1px;
+  cursor: pointer;
+  transition: background-color 170ms var(--ease-out), border-color 170ms var(--ease-out);
+}
+
+.ui-switch[data-state="checked"] {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.ui-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ui-switch-thumb {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: oklch(0.93 0.008 265);
+  transition: transform 170ms var(--ease-out);
+}
+
+.ui-switch[data-state="checked"] .ui-switch-thumb {
+  transform: translateX(14px);
+  background: white;
+}
+
+.ui-tooltip-content {
+  z-index: 60;
+  max-width: 280px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  padding: 7px 9px;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.4;
+  box-shadow: 0 6px 16px oklch(0.04 0.01 265 / 0.5);
+  transform-origin: var(--radix-tooltip-content-transform-origin);
+  animation: tooltip-in 140ms var(--ease-out);
+}
+
+.ui-tooltip-content svg {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 3px;
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(2px);
+  }
+}
+
+.ui-dropdown-content {
+  z-index: 50;
+  min-width: 200px;
+  max-width: min(320px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--raised);
+  padding: 5px;
+  color: var(--text);
+  box-shadow: 0 10px 26px oklch(0.04 0.01 265 / 0.55);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  animation: dropdown-in 140ms var(--ease-out);
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985) translateY(-2px);
+  }
+}
+
+.ui-dropdown-item {
+  position: relative;
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 9px;
+  border-radius: var(--radius-sm);
+  padding: 0 9px;
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+.ui-dropdown-item[data-disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.ui-dropdown-item[data-highlighted] {
+  background: oklch(0.29 0.014 265);
+}
+
+.ui-dropdown-radio-item {
+  padding-left: 28px;
+}
+
+.ui-dropdown-indicator {
+  position: absolute;
+  left: 8px;
+  display: grid;
+  width: 14px;
+  place-items: center;
+  color: var(--accent-text);
+}
+
+.ui-dropdown-label {
+  padding: 7px 9px 5px;
+  color: var(--quiet);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.ui-dropdown-separator {
+  height: 1px;
+  margin: 5px;
+  background: var(--border);
+}
+
+.ui-dropdown-sub-chevron,
+.ui-dropdown-shortcut {
+  margin-left: auto;
+}
+
+.ui-dropdown-shortcut {
+  color: var(--quiet);
+  font-size: 11px;
+}
+
+.profile-menu {
+  min-width: 224px;
+}
+
+/* -----------------------------------------------------------------------------
+   Misc
+   -------------------------------------------------------------------------- */
+
+.app-toast {
+  font-size: 12px;
+}
+
+.fatal-error {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 32px;
+  text-align: center;
+}
+
+.fatal-error svg {
+  color: var(--failure);
+}
+
+.fatal-error p {
+  max-width: 48ch;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fatal-error .ui-button {
+  margin-top: 6px;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: oklch(0.63 0.02 265 / 0.28);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.68 0.02 265 / 0.42);
+  background-clip: padding-box;
+}
+
+/* -----------------------------------------------------------------------------
+   Adaptation
+
+   The window minimum is 1024x640, so these handle real window sizes rather
+   than phone widths.
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1320px) {
+  :root {
+    --editor-width: 336px;
+  }
+
+  .diagnostic-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The rail narrows but keeps its labels. Four sections whose icons are not
+   individually obvious are worth ~40px more than the stage is. */
+@media (max-width: 1160px) {
+  :root {
+    --rail-width: 172px;
+  }
+
+  .nav-item-hint {
+    display: none;
+  }
+
+  .mappings-view {
+    grid-template-columns: minmax(260px, 1fr) 440px;
+  }
+
+  .stat-row {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+/* At the 1024px window minimum the stage still needs room, so the editor and
+   the command bar give some back rather than letting the model shrink. */
+@media (max-width: 1080px) {
+  :root {
+    --rail-width: 164px;
+    --editor-width: 312px;
+  }
+
+  .command-bar {
+    gap: 8px;
+    padding: 0 10px 0 84px;
+  }
+
+  .controller-health-name {
+    display: none;
+  }
+
+  .mappings-view {
+    grid-template-columns: minmax(240px, 1fr) 400px;
+  }
+
+  .settings-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 240px);
+    gap: 16px;
+  }
+}
+
+@media (pointer: coarse) {
+  .ui-button {
+    min-height: 40px;
+  }
+
+  .ui-button--icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .nav-item {
+    min-height: 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

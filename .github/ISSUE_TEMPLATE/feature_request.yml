@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest a focused improvement to Codex Controller.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What controller workflow is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Integration boundary
+      options:
+        - label: This can be implemented without private Codex IPC, credential access, or patching another app.
+          required: true
