@@ -62,7 +62,7 @@
     "@testing-library/react": "16.3.2",
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
+    "@types/react-dom": "^19.2.4",
     "@types/three": "0.185.1",
     "@vitejs/plugin-react": "5.2.0",
     "electron": "43.2.0",
