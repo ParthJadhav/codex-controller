@@ -76,7 +76,7 @@
   "build": {
     "appId": "com.parthjadhav.CodexController",
     "productName": "Codex Controller",
-    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "artifactName": "Codex-Controller-${version}-${arch}.${ext}",
     "copyright": "Copyright © 2026 Parth Jadhav",
     "asar": true,
     "electronLanguages": [

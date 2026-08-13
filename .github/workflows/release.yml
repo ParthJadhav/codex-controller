@@ -77,7 +77,7 @@ jobs:
 
       - name: Write checksums and SBOM
         run: |
-          shasum -a 256 dist/*.dmg dist/*.zip > dist/SHA256SUMS.txt
+          (cd dist && shasum -a 256 *.dmg *.zip > SHA256SUMS.txt)
           npm sbom --sbom-format cyclonedx > "dist/codex-controller-$(node -p "require('./package.json').version")-sbom.cdx.json"
 
       - name: Retain the verified artifacts
