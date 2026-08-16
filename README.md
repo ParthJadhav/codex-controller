@@ -11,6 +11,39 @@ haptic, light, and Accessibility APIs.
 > OpenAI and Codex are trademarks of OpenAI. PlayStation and DualSense are
 > trademarks or registered trademarks of Sony Interactive Entertainment.
 
+## In action
+
+![Codex Controller main workspace showing a connected DualSense and the Cross button mapping editor](docs/screenshots/codex-controller-main.png)
+
+_Screenshots use synthetic profiles, controller activity, and system status. No
+user data is shown._
+
+<details>
+<summary><strong>Explore mappings, diagnostics, and settings</strong></summary>
+
+### Mappings
+
+Browse every layer, search mappings, and edit a selected controller action in
+place.
+
+![Codex Controller mapping browser with the Square button mapped to Open project picker](docs/screenshots/codex-controller-mappings.png)
+
+### Diagnostics
+
+Inspect controller health, macOS permissions, touchpad readiness, and live input
+edges.
+
+![Codex Controller diagnostics showing a healthy DualSense and synthetic input events](docs/screenshots/codex-controller-diagnostics.png)
+
+### Settings
+
+Review Codex shortcut bindings and manage local profiles and controller
+behavior.
+
+![Codex Controller settings showing Codex command shortcuts](docs/screenshots/codex-controller-settings.png)
+
+</details>
+
 ## What it does
 
 - Maps DualSense buttons, triggers, sticks, stick rotation, chords, holds, and
