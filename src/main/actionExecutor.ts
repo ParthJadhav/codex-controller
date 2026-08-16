@@ -122,7 +122,8 @@ export class ActionExecutor {
     for (const [index, result] of results.entries()) {
       if (result.success) continue
       this.nativeBridge.reportError(
-        `${states[index]!.request.action.title} may still be held down: ${result.message}`
+        `${states[index]!.request.action.title} may still be held down: ${result.message}`,
+        'A held shortcut could not be released cleanly.'
       )
     }
   }
@@ -172,12 +173,14 @@ export class ActionExecutor {
     const titles = states.map((state) => state.request.action.title).join(', ')
     if (exit.willRestart) {
       this.nativeBridge.reportError(
-        `The native bridge stopped while holding ${titles}. The key is released as soon as it restarts.`
+        `The native bridge stopped while holding ${titles}. The key is released as soon as it restarts.`,
+        `The native bridge stopped with ${states.length} held shortcut(s); recovery is scheduled.`
       )
       return
     }
     this.nativeBridge.reportError(
-      `The native bridge stopped while holding ${titles} and cannot release it. Tap the key once if it stays down.`
+      `The native bridge stopped while holding ${titles} and cannot release it. Tap the key once if it stays down.`,
+      `The native bridge stopped with ${states.length} held shortcut(s) and no restart available.`
     )
   }
 

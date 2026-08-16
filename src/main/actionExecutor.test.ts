@@ -223,7 +223,8 @@ describe('ActionExecutor holds across a bridge crash', () => {
     bridge.exit(true)
 
     expect(bridge.reportError).toHaveBeenCalledWith(
-      'The native bridge stopped while holding Hold to dictate. The key is released as soon as it restarts.'
+      'The native bridge stopped while holding Hold to dictate. The key is released as soon as it restarts.',
+      'The native bridge stopped with 1 held shortcut(s); recovery is scheduled.'
     )
     expect(executor.heldShortcutCount).toBe(1)
   })
@@ -358,7 +359,8 @@ describe('ActionExecutor holds across a bridge crash', () => {
     bridge.exit(false)
 
     expect(bridge.reportError).toHaveBeenCalledWith(
-      'The native bridge stopped while holding Hold to dictate and cannot release it. Tap the key once if it stays down.'
+      'The native bridge stopped while holding Hold to dictate and cannot release it. Tap the key once if it stays down.',
+      'The native bridge stopped with 1 held shortcut(s) and no restart available.'
     )
     // Keep the cleanup intent: a later manual retry or recovered helper can
     // still confirm the key-up instead of losing the only record of it.
@@ -372,7 +374,8 @@ describe('ActionExecutor holds across a bridge crash', () => {
     await executor.releaseHeldShortcuts()
 
     expect(bridge.reportError).toHaveBeenCalledWith(
-      'Hold to dictate may still be held down: no controller'
+      'Hold to dictate may still be held down: no controller',
+      'A held shortcut could not be released cleanly.'
     )
     expect(executor.heldShortcutCount).toBe(1)
 
@@ -554,7 +557,8 @@ describe('ActionExecutor holds across a bridge crash', () => {
     expect(bridge.request).toHaveBeenCalledTimes(2)
     expect(bridge.request.mock.calls.map((call) => call[2])).toEqual([2_000, 2_000])
     expect(bridge.reportError).toHaveBeenCalledWith(
-      'Hold to dictate may still be held down: release transport failed'
+      'Hold to dictate may still be held down: release transport failed',
+      'A held shortcut could not be released cleanly.'
     )
     expect(executor.heldShortcutCount).toBe(1)
   })

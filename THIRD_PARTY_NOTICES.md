@@ -20,6 +20,10 @@ Production dependencies use MIT, ISC, Apache-2.0, or 0BSD licenses. Their
 package license files are retained in the packaged application. Electron also
 ships its Electron and Chromium license notices in the application bundle.
 
+Local application and crash logging uses
+[electron-log](https://github.com/megahertz/electron-log), released under the
+MIT License.
+
 ## Opus
 
 Experimental Bluetooth microphone verification dynamically loads a compatible

@@ -45,10 +45,24 @@ body:
       label: Actual behavior
     validations:
       required: true
+  - type: markdown
+    attributes:
+      value: |
+        ### Attach diagnostic logs
+
+        In Finder, choose **Go > Go to Folder…**, enter `~/Library/Logs/Codex Controller/`, then drag `main.log` and any `main.1.log`–`main.3.log` files into the field below. Logs are stored only on your Mac and capped at approximately 20 MB total. Please review them before sharing.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Diagnostic log files
+      description: Drag the files here to attach them. If logs are unavailable, briefly explain why.
+      placeholder: Drag main.log and any numbered archives here, or explain why they are unavailable.
+    validations:
+      required: true
   - type: checkboxes
     id: safety
     attributes:
       label: Data safety
       options:
-        - label: I removed credentials, private task content, and unique device identifiers.
+        - label: I reviewed my description and attached logs and removed credentials, private task content, and unique device identifiers.
           required: true

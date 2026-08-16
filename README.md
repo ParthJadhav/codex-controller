@@ -186,6 +186,26 @@ in memory and discarded.
 Read [PRIVACY.md](PRIVACY.md) for the data boundary and [SECURITY.md](SECURITY.md)
 for responsible disclosure.
 
+## Troubleshooting logs
+
+Codex Controller keeps bounded diagnostic logs locally so beta failures can be
+debugged without telemetry. In Finder, choose **Go > Go to Folder…** and enter:
+
+```text
+~/Library/Logs/Codex Controller/
+```
+
+`main.log` is current; `main.1.log` through `main.3.log` are older. Each file is
+limited to 5 MB, for approximately 20 MB total. Logs contain runtime versions,
+lifecycle and native-helper health, safe operation metadata, and errors. They do
+not intentionally contain mapping payloads, typed text, URLs, controller input
+values, profile names, or raw controller identifiers, and common identifiers
+and secrets are redacted before writing.
+
+Nothing uploads these files automatically. Review them before attaching them to
+a [bug report](https://github.com/ParthJadhav/codex-controller/issues/new?template=bug_report.yml).
+See [Diagnostic logging](docs/LOGGING.md) for the exact retention and data policy.
+
 ## Third-party assets
 
 The interactive DualSense model is “Playstation 5 Dualsense” by

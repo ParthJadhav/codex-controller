@@ -131,6 +131,7 @@ export class NativeBridge extends EventEmitter {
   private pending = new Map<
     string,
     {
+      command: string
       resolve: (value: { success: boolean; message: string }) => void
       timer: NodeJS.Timeout
     }
@@ -160,8 +161,9 @@ export class NativeBridge extends EventEmitter {
     return this.latestPermissions
   }
 
-  /** Surfaces a main-process failure on the renderer's error channel. */
-  reportError(message: string): void {
+  /** Surfaces a main-process failure on the renderer's error channel and local log. */
+  reportError(message: string, diagnosticMessage = message): void {
+    console.error(`[native bridge] ${diagnosticMessage}`)
     this.emit('event', {
       type: 'error',
       payload: { message }
@@ -187,16 +189,19 @@ export class NativeBridge extends EventEmitter {
   }
 
   async start(): Promise<void> {
+    console.info('[native bridge] Starting helper')
     this.stopping = false
     this.restartAttempt = 0
     this.restartAwaitingReadiness = false
     const outcome = await this.launch(false)
     // A missing binary is the normal state of a checkout without a Swift build;
     // the renderer already reports it through `nativeBridgeAvailable`.
-    if (outcome.status === 'failed') this.reportError(outcome.message)
+    if (outcome.status === 'missing') console.warn(`[native bridge] ${outcome.message}`)
+    else if (outcome.status === 'failed') this.reportError(outcome.message)
   }
 
   stop(): void {
+    console.info('[native bridge] Stopping helper')
     this.stopping = true
     if (this.restartTimer) {
       clearTimeout(this.restartTimer)
@@ -236,9 +241,10 @@ export class NativeBridge extends EventEmitter {
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pending.delete(id)
+        console.warn(`[native bridge] Command timed out: ${command}`)
         resolve({ success: false, message: 'The native action timed out.' })
       }, timeoutMilliseconds)
-      this.pending.set(id, { resolve, timer })
+      this.pending.set(id, { command, resolve, timer })
       if (!this.write(child, value)) {
         clearTimeout(timer)
         this.pending.delete(id)
@@ -281,6 +287,7 @@ export class NativeBridge extends EventEmitter {
 
     this.child = child
     this.available = true
+    console.info('[native bridge] Helper process spawned', { restart: awaitingRestartReadiness })
     this.restartAwaitingReadiness = awaitingRestartReadiness
     this.stdoutLines.reset()
     this.stderrLines.reset()
@@ -325,6 +332,7 @@ export class NativeBridge extends EventEmitter {
     this.failPending('The native bridge stopped unexpectedly.')
 
     if (this.stopping) {
+      console.info('[native bridge] Helper exited during shutdown', { code, signal })
       this.emit('exit', { code, signal, willRestart: false } satisfies NativeBridgeExit)
       return
     }
@@ -355,6 +363,11 @@ export class NativeBridge extends EventEmitter {
     if (!willRestart || delay === undefined) return
 
     this.restartAttempt += 1
+    console.info('[native bridge] Restart scheduled', {
+      attempt: this.restartAttempt,
+      maximumAttempts: this.restartDelays.length,
+      delayMilliseconds: delay
+    })
     this.restartTimer = setTimeout(() => void this.attemptRestart(), delay)
     this.restartTimer.unref?.()
   }
@@ -363,6 +376,7 @@ export class NativeBridge extends EventEmitter {
     this.restartTimer = null
     if (this.stopping) return
 
+    console.info('[native bridge] Attempting helper restart', { attempt: this.restartAttempt })
     const outcome = await this.launch(true)
     if (outcome.status !== 'started') {
       this.handleFailure(outcome.message)
@@ -427,6 +441,7 @@ export class NativeBridge extends EventEmitter {
       this.restartAttempt = 0
       if (this.restartAwaitingReadiness) {
         this.restartAwaitingReadiness = false
+        console.info('[native bridge] Restarted helper is ready')
         this.emit('restarted')
       }
       if (type === 'response') {
@@ -435,12 +450,17 @@ export class NativeBridge extends EventEmitter {
         if (pending) {
           clearTimeout(pending.timer)
           this.pending.delete(response.id)
+          if (!response.success) {
+            console.warn(`[native bridge] Command reported failure: ${pending.command}`)
+          }
           pending.resolve({ success: response.success, message: response.message })
         }
       } else {
         const event = value as NativeBridgeEvent
         if (event.type === 'permission') {
           this.latestPermissions = event.payload as SystemSnapshot
+        } else if (event.type === 'error') {
+          console.error('[native bridge] Helper reported an operational error')
         }
         this.emit('event', event)
       }

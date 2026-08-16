@@ -6,6 +6,28 @@ Codex Controller is a local macOS companion. Its core runtime contains no networ
 
 The app reads semantic controller elements delivered by Apple's Game Controller framework. Recent input values are held in memory for the live Diagnostics table and are discarded when the process exits.
 
+For beta diagnostics, the app writes a bounded local log at:
+
+```text
+~/Library/Logs/Codex Controller/main.log
+```
+
+The log records runtime versions, lifecycle and process failures, native-helper
+health, changing permission states, controller connection/capability summaries,
+safe action metadata and outcomes, and profile/keymap operation counts and
+statuses. It does not intentionally record controller names or identifiers,
+controller event values or history, mapping payloads, profile names, action
+titles, typed text, shortcuts, URLs, audio samples, Codex task content, or
+credentials. The logger replaces the home-directory prefix, MAC addresses,
+UUIDs, and common secret/token assignments before writing. Unexpected operating
+system or framework errors may include context the app did not construct, so
+users should review logs before posting them publicly.
+
+The current file and three numbered archives are limited to 5 MB each, for
+approximately 20 MB total. Files are never transmitted automatically; a user
+must attach them manually to a bug report. The complete event and retention
+policy is in [Diagnostic logging](docs/LOGGING.md).
+
 The app stores one local, versioned profile library containing 1–24 mapping profiles at:
 
 ```text
@@ -64,3 +86,5 @@ the app wrote Codex bindings, restore `~/.codex/keybindings.json` from
 `keybindings.json.codex-controller-backup.json` (or delete the entries by hand in Codex's Keyboard
 Shortcuts) and then delete the backup. Permission records can be removed from **System Settings >
 Privacy & Security** under **Input Monitoring**, **Accessibility**, and **Microphone**.
+Deleting `~/Library/Logs/Codex Controller/` while the app is closed removes all
+diagnostic logs; the directory is recreated on the next launch.
