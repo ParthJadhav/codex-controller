@@ -60,19 +60,19 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@testing-library/react": "16.3.2",
-    "@types/node": "^24.10.0",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "^24.19.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/three": "0.185.1",
     "@vitejs/plugin-react": "5.2.0",
-    "electron": "43.2.0",
-    "electron-builder": "26.15.3",
+    "electron": "43.8.3",
+    "electron-builder": "26.18.0",
     "electron-vite": "5.0.0",
     "jsdom": "29.1.1",
     "typescript": "^5.9.3",
-    "vite": "7.3.6",
-    "vitest": "4.1.10"
+    "vite": "7.3.7",
+    "vitest": "4.1.12"
   },
   "build": {
     "appId": "com.parthjadhav.CodexController",
